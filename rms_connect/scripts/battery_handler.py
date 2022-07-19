@@ -7,4 +7,3 @@ class BatteryHandler:
 
     def battery_info_handler(self, info):
         self.battery_publisher.publish(String(str(info)))
-        rospy.loginfo(info)
