@@ -3,4 +3,5 @@
     <node pkg="joy" name="joynode" type="joy_node">
         <param name="autorepeat_rate" type="double" value="10.0"/>
     </node>
+    <node pkg="rms_control" name="joyHandler" type="joy_control.py" output="screen"/>
 </launch>
