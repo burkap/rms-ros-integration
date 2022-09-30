@@ -2,8 +2,12 @@
 import rospy
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Float64MultiArray
+from rms_connect.srv import *
 
 class JoyControl:
+    def reset(self):
+        self.rgb_led_control(0,255,0)
+
     def wheel_control(self, data):
         linear_x = data.axes[4]
         linear_y = data.axes[3]
@@ -26,8 +30,8 @@ class JoyControl:
         self.wheel_publisher.publish(msg)
 
     def gimbal_control(self, data):
-        yaw = - data.axes[6]
-        pitch = data.axes[7]
+        yaw = - data.axes[6] * 30
+        pitch = data.axes[7] * 30
         
         msg = Float64MultiArray()
         msg.data = [pitch, yaw]
@@ -39,6 +43,15 @@ class JoyControl:
 
     def __init__(self):
         rospy.init_node('rms_joy_control', anonymous=True)
+        rospy.on_shutdown(self.reset)
+        rospy.wait_for_service('rgb_led_control')
+        try:
+            self.rgb_led_control = rospy.ServiceProxy('rgb_led_control', RgbControl)
+            self.rgb_led_control(255,255,0)
+        except rospy.ServiceException as e:
+            print("RGB Service call failed: %e", e)
+
+        
         self.sub = rospy.Subscriber("/joy", Joy, self.on_joy_command)
         self.wheel_publisher = rospy.Publisher("/robomaster/control/wheel_speed", Float64MultiArray, queue_size=10)
         self.gimbal_publisher = rospy.Publisher("/robomaster/control/gimbal", Float64MultiArray, queue_size=10)
@@ -50,4 +63,7 @@ class JoyControl:
               
 
 if __name__ == '__main__':
-    JoyControl()
+    try:
+        JoyControl()
+    except:
+        rospy.signal_shutdown("Exception raised")
