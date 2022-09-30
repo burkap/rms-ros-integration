@@ -7,7 +7,7 @@ import rospy
 from rms_connect.srv import *
 import robomaster
 import time
-from robomaster import robot, gimbal, conn
+from robomaster import robot, gimbal, conn, led
 
 from MyQR import myqr
 from PIL import Image
