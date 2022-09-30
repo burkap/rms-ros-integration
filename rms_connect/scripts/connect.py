@@ -4,6 +4,7 @@ import sys, os
 sys.path.insert(0,'/home/ai2s/ros_catkin_ws/install' + '/lib/python3/dist-packages/')
 
 import rospy
+from rms_connect.srv import *
 import robomaster
 import time
 from robomaster import robot, gimbal, conn
@@ -19,7 +20,7 @@ from camera_handler import CameraHandler
 from gimbal_controller import GimbalController
 from gimbal_angle_handler import GimbalInfoHandler
 from esc_info_handler import EscInfoHandler
-
+from led_controller import LedController
 
 class ConnectionHandler:
     def __init__(self):
@@ -27,7 +28,7 @@ class ConnectionHandler:
         self.robo = robot.Robot()
         self.robo.initialize(conn_type='sta')
         self.robo.set_robot_mode(mode=robot.CHASSIS_LEAD)
-        
+        self.led = self.robo.led
         self.imu_handler = IMUHandler()
         self.battery_handler = BatteryHandler()
         self.position_handler = PositionHandler(self.imu_handler)
@@ -35,7 +36,14 @@ class ConnectionHandler:
         self.gimbal_controller = GimbalController(self.robo)
         self.gimbal_info_handler = GimbalInfoHandler()
         self.esc_info_handler = EscInfoHandler()
-        
+        self.led_controller = LedController(self.robo)
+        rospy.wait_for_service('rgb_led_control')
+        try:
+            rgb_led_control = rospy.ServiceProxy('rgb_led_control', RgbControl)
+            rgb_led_control(0,255,0)
+        except rospy.ServiceException as e:
+            print("RGB Service call failed: %e", e)
+
         # Camera stuff
         self.camera_handler = CameraHandler(self.robo)
         
@@ -60,7 +68,8 @@ class ConnectionHandler:
             self.wheel_controller.publish_message()
             self.gimbal_controller.publish_message()
             self.rate.sleep()
-            
+
+        self.led.set_led(comp=led.COMP_ALL, r=0, g=255, b=255, effect=led.EFFECT_ON)     
         self.robo.chassis.unsub_imu()
         self.robo.chassis.unsub_esc()
         self.robo.chassis.unsub_attitude()
