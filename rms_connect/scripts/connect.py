@@ -21,10 +21,28 @@ from gimbal_controller import GimbalController
 from gimbal_angle_handler import GimbalInfoHandler
 from esc_info_handler import EscInfoHandler
 from led_controller import LedController
+from std_srvs.srv import Trigger
 
 class ConnectionHandler:
+    def clean_shutdown(self):
+        self.led.set_led(comp=led.COMP_ALL, r=0, g=255, b=255, effect=led.EFFECT_ON)
+        self.robo.chassis.unsub_imu()
+        self.robo.chassis.unsub_esc()
+        self.robo.chassis.unsub_attitude()
+        self.robo.battery.unsub_battery_info()
+        self.robo.chassis.unsub_position()
+        self.robo.gimbal.unsub_angle()
+        self.robo.camera.stop_video_stream()
+        self.robo.close()
+
+    def on_interrupt(self, data):
+        rospy.signal_shutdown("Service interrupted")
+        return (True, "success")
+        
+    
     def __init__(self):
         rospy.init_node('rm_connect', anonymous=True)
+        rospy.on_shutdown(self.clean_shutdown)
         self.robo = robot.Robot()
         self.robo.initialize(conn_type='sta')
         self.robo.set_robot_mode(mode=robot.CHASSIS_LEAD)
@@ -43,6 +61,8 @@ class ConnectionHandler:
             rgb_led_control(0,255,0)
         except rospy.ServiceException as e:
             print("RGB Service call failed: %e", e)
+
+        self.serve = rospy.Service('/robomaster/kill', Trigger, self.on_interrupt)
 
         # Camera stuff
         self.camera_handler = CameraHandler(self.robo)
@@ -64,7 +84,10 @@ class ConnectionHandler:
         self.robo.gimbal.sub_angle(freq=5, callback=self.gimbal_info_handler.gimbal_info_handler)
         
         while (not rospy.is_shutdown()):
-            self.camera_handler.publish_image()
+            try:
+                self.camera_handler.publish_image()
+            except:
+                print("Error while publishing image")
             self.wheel_controller.publish_message()
             self.gimbal_controller.publish_message()
             self.rate.sleep()
@@ -76,6 +99,7 @@ class ConnectionHandler:
         self.robo.battery.unsub_battery_info()
         self.robo.chassis.unsub_position()
         self.robo.gimbal.unsub_angle()
+        self.robo.camera.stop_video_stream()
 
         # self.camera_task.cancel()
 
